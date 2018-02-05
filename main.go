@@ -1,13 +1,14 @@
 package main
 
 import (
-	"time"
 	"database/sql"
-	"math/rand"
 	"fmt"
+	"math/rand"
+	"time"
 	//"log"
-	"strconv"
 	_ "github.com/lib/pq"
+	"log"
+	"strconv"
 )
 
 //devices
@@ -35,8 +36,8 @@ type DeviceAlertStruct struct {
 
 var DB *sql.DB
 var dbUser = "postgres"
-var dbPass = "postgres"
-var dbName = "postgres"
+var dbPass = "gfhjkm"
+var dbName = "dm"
 
 func init() {
 
@@ -46,31 +47,31 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	//defer DB.Close() 
+	//defer DB.Close()
 
 }
-
 
 func GetAllDevicesFromDB() chan DevicesStruct {
 
 	out := make(chan DevicesStruct)
-	rows, err := DB.Query("SELECT * FROM devices")
+	rows, err := DB.Query("SELECT * FROM devices;")
 	if err != nil {
 		//panic(err)
 	}
-	defer rows.Close()
+	//defer rows.Close()
+	//fmt.Println(rows)
 
-	go func() {
-		for rows.Next() {
+	for rows.Next() {
+		go func() {
 			var newDevice DevicesStruct
 			err := rows.Scan(&newDevice.Id, &newDevice.Name, &newDevice.Userid)
 			if err != nil {
 				//panic(err)
 			}
 			out <- newDevice
-		}
-		close(out)
-	}()
+		}()
+	}
+	//close(out)
 
 	return out
 }
@@ -80,21 +81,19 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 	time.Sleep(5 * time.Second)
 	out := make(chan DevicesMetricStruct)
 
-	go func() {
-		var newMetric DevicesMetricStruct
-		for v := range in {
-			
+	for v := range in {
+		go func() {
+
+			var newMetric DevicesMetricStruct
 			newMetric.Id = TableIDs("device_metrics")
 			newMetric.Deviceid = v.Id
-			
 			for i := 0; i < len(newMetric.Metric); i++ {
 				newMetric.Metric[i] = rand.Intn(50)
 			}
 			newMetric.LocalTime = time.Now().AddDate(0, 0, -1)
 			newMetric.ServerTime = time.Now()
-			//log.Println(newMetric)
+			log.Println(newMetric)
 
-			
 			var stringQ = "INSERT INTO device_metrics (Id, device_Id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 			_, err := DB.Exec(stringQ,
 				newMetric.Id,
@@ -111,12 +110,12 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 				//return
 			}
 			out <- newMetric
-		}
-		close(out)
-	}()
+		}()
+
+	}
+	close(out)
 	return out
 }
-
 
 func checkMetrics(in chan DevicesMetricStruct) {
 
@@ -124,14 +123,13 @@ func checkMetrics(in chan DevicesMetricStruct) {
 		var newAlert DeviceAlertStruct
 		for v := range in {
 			for i := 0; i < len(v.Metric); i++ {
-				
+
 				if v.Metric[i] == 43 {
-					
+
 					newAlert.Id = TableIDs("device_alerts")
 					newAlert.Deviceid = v.Deviceid
 					newAlert.Message = "Bad metric param on device " + strconv.Itoa(v.Deviceid)
 
-					
 					_, err := DB.Exec("INSERT INTO device_alerts (id, device_id, message) VALUES ($1, $2, $3)", newAlert.Id, newAlert.Deviceid, newAlert.Message)
 					if err != nil {
 						fmt.Println(err.Error())
@@ -166,14 +164,15 @@ func TableIDs(nameT string) (lastID int) {
 	return lastID
 }
 
-
 func main() {
 
-
+	//GetAllDevicesFromDB()
 	allDevices := GetAllDevicesFromDB()
+
 	for {
 		allMetrics := CreateMetric(allDevices)
-		checkMetrics(allMetrics)
+		fmt.Println(len(allMetrics))
+		//checkMetrics(allMetrics)
 	}
 
 }
