@@ -9,6 +9,7 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"strconv"
+	"sync"
 )
 
 //devices
@@ -60,19 +61,23 @@ func GetAllDevicesFromDB() chan DevicesStruct {
 	}
 	//defer rows.Close()
 	//fmt.Println(rows)
+	var numberOfRows = 10000
 
-	for rows.Next() {
+	var m sync.Mutex
+	for numberOfRows>0 {
 		go func() {
 			var newDevice DevicesStruct
-			err := rows.Scan(&newDevice.Id, &newDevice.Name, &newDevice.Userid)
-			if err != nil {
-				//panic(err)
-			}
-			out <- newDevice
-		}()
-	}
-	//close(out)
-
+				m.Lock()
+				rows.Next()
+				err := rows.Scan(&newDevice.Id, &newDevice.Name, &newDevice.Userid)
+				m.Unlock()
+				if err != nil {
+					//panic(err)
+				}
+				out <- newDevice
+			}()
+		numberOfRows--
+		}
 	return out
 }
 
@@ -82,12 +87,12 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 	out := make(chan DevicesMetricStruct)
 
 	for v := range in {
-		go func() {
+		go func(ds DevicesStruct) {
 
 			var newMetric DevicesMetricStruct
 			newMetric.Id = TableIDs("device_metrics")
 
-			newMetric.Deviceid = v.Id
+			newMetric.Deviceid = ds.Id
 			for i := 0; i < len(newMetric.Metric); i++ {
 				newMetric.Metric[i] = rand.Intn(50)
 			}
@@ -111,7 +116,7 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 				//return
 			}
 			out <- newMetric
-		}()
+		}(v)
 
 	}
 	close(out)
@@ -169,11 +174,9 @@ func main() {
 
 	//GetAllDevicesFromDB()
 	allDevices := GetAllDevicesFromDB()
-
-	for {
-		allMetrics := CreateMetric(allDevices)
-		fmt.Println(len(allMetrics))
-		//checkMetrics(allMetrics)
+	allMetrics := CreateMetric(allDevices)
+	for r := range allMetrics {
+		fmt.Println(r)
 	}
 
 }
