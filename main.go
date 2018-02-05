@@ -86,6 +86,7 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 
 			var newMetric DevicesMetricStruct
 			newMetric.Id = TableIDs("device_metrics")
+
 			newMetric.Deviceid = v.Id
 			for i := 0; i < len(newMetric.Metric); i++ {
 				newMetric.Metric[i] = rand.Intn(50)
