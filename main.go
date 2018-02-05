@@ -46,11 +46,11 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	//defer DB.Close() //because connection online - bad but for example
+	//defer DB.Close() 
 
 }
 
-//clean DB with current tables- dmclean.sql PG 10
+
 func GetAllDevicesFromDB() chan DevicesStruct {
 
 	out := make(chan DevicesStruct)
@@ -77,19 +77,16 @@ func GetAllDevicesFromDB() chan DevicesStruct {
 
 func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 
-	//create metrics every 5 sec
-	//or maybe this value need in main function
-
 	time.Sleep(5 * time.Second)
 	out := make(chan DevicesMetricStruct)
 
 	go func() {
 		var newMetric DevicesMetricStruct
 		for v := range in {
-			//get uniq ID before write to DB
+			
 			newMetric.Id = TableIDs("device_metrics")
 			newMetric.Deviceid = v.Id
-			//set random metrics values
+			
 			for i := 0; i < len(newMetric.Metric); i++ {
 				newMetric.Metric[i] = rand.Intn(50)
 			}
@@ -97,7 +94,7 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 			newMetric.ServerTime = time.Now()
 			//log.Println(newMetric)
 
-			//insert new metric to DB
+			
 			var stringQ = "INSERT INTO device_metrics (Id, device_Id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 			_, err := DB.Exec(stringQ,
 				newMetric.Id,
@@ -120,21 +117,21 @@ func CreateMetric(in chan DevicesStruct) chan DevicesMetricStruct {
 	return out
 }
 
-//check metrics
+
 func checkMetrics(in chan DevicesMetricStruct) {
 
 	go func() {
 		var newAlert DeviceAlertStruct
 		for v := range in {
 			for i := 0; i < len(v.Metric); i++ {
-				//if one vlue from metric bad - create alert
+				
 				if v.Metric[i] == 43 {
-					//get unique ID to write in DB
+					
 					newAlert.Id = TableIDs("device_alerts")
 					newAlert.Deviceid = v.Deviceid
 					newAlert.Message = "Bad metric param on device " + strconv.Itoa(v.Deviceid)
 
-					//insert alert in DB
+					
 					_, err := DB.Exec("INSERT INTO device_alerts (id, device_id, message) VALUES ($1, $2, $3)", newAlert.Id, newAlert.Deviceid, newAlert.Message)
 					if err != nil {
 						fmt.Println(err.Error())
@@ -146,7 +143,6 @@ func checkMetrics(in chan DevicesMetricStruct) {
 	}()
 }
 
-//get unique ID for new Row in table
 func TableIDs(nameT string) (lastID int) {
 	stringQ := "SELECT COUNT(ID) FROM " + nameT + ";"
 	rows, err := DB.Query(stringQ)
@@ -173,8 +169,6 @@ func TableIDs(nameT string) (lastID int) {
 
 func main() {
 
-	//how do all of this correctly and parallel without changes logic for all program?
-	//thanks!!!
 
 	allDevices := GetAllDevicesFromDB()
 	for {
