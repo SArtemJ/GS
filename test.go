@@ -5,7 +5,6 @@ import (
 	"github.com/go-pg/pg"
 	"time"
 	"math/rand"
-	//"log"
 )
 
 type Device struct {
@@ -24,6 +23,7 @@ type Metric struct {
 
 var DB *pg.DB
 var Dev = make(chan Device)
+//var Metr = make(chan Metric)
 var LastIDm int
 
 func init() {
@@ -65,20 +65,36 @@ func createMetrics(in Device) {
 	newM.Deviceid = in.Id
 	newM.LocalTime = time.Now()
 	newM.ServerTime = time.Now()
+	//Metr <- newM
 	//fmt.Println(newM)
-	go insertMetricsDB(newM)
+	//insertMetricsDB(newM)
 }
 
 func insertMetricsDB(in Metric) {
 
 
 	//log.Println(&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime)
-	_, err := DB.QueryOne(&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime, `
-	INSERT INTO device_metrics (id, device_id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time)
-	VALUES (?id, ?device_id, ?metric_1, ?metric_2, ?metric_3, ?metric_4, ?metric_5, ?local_time, ?server_time)
-	`, &in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime)
+	//_, err := DB.QueryOne(&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime,
+	//	`INSERT INTO device_metrics (id, device_id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time)
+	//		VALUES (?id, ?device_id, ?metric_1, ?metric_2, ?metric_3, ?metric_4, ?metric_5, ?local_time, ?server_time)`,
+	//	&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime)
+	//if err != nil {
+	//	//panic(err)
+	//}
+	var stringQ = "INSERT INTO device_metrics (Id, device_Id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	_, err := DB.Exec(stringQ,
+		in.Id,
+		in.Deviceid,
+		in.Metric[0],
+		in.Metric[1],
+		in.Metric[2],
+		in.Metric[3],
+		in.Metric[4],
+		in.LocalTime,
+		in.ServerTime)
 	if err != nil {
-		//panic(err)
+		//fmt.Println(err.Error())
+		//return
 	}
 
 }
@@ -100,6 +116,7 @@ func main() {
 	for {
 		go getAllDevices()
 		go createMetrics(<-Dev)
+		//go insertMetricsDB(<-Metr)
 		time.Sleep(time.Second*1)
 
 	}
