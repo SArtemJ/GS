@@ -5,7 +5,7 @@ import (
 	"github.com/go-pg/pg"
 	"time"
 	"math/rand"
-	"fmt"
+	//"log"
 )
 
 type Device struct {
@@ -17,7 +17,7 @@ type Device struct {
 type Metric struct {
 	Id         int
 	Deviceid   int
-	Metric     [5]int
+	Metric     [5]int64
 	LocalTime  time.Time
 	ServerTime time.Time
 }
@@ -34,8 +34,6 @@ func init() {
 		Database: "dm",
 		Addr:"localhost:5432",
 	})
-
-
 
 }
 
@@ -58,19 +56,34 @@ func getAllDevices() {
 }
 
 func createMetrics(in Device) {
-
-
 	var newM Metric
 	getLastID("device_metrics")
 	newM.Id = LastIDm
 	for i:=0; i<len(newM.Metric); i++ {
-		newM.Metric[i] = rand.Intn(100)
+		newM.Metric[i] = rand.Int63n(100)
 	}
 	newM.Deviceid = in.Id
 	newM.LocalTime = time.Now()
 	newM.ServerTime = time.Now()
-	fmt.Println(newM)
+	//fmt.Println(newM)
+	go insertMetricsDB(newM)
 }
+
+func insertMetricsDB(in Metric) {
+
+
+	//log.Println(&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime)
+	_, err := DB.QueryOne(&in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime, `
+	INSERT INTO device_metrics (id, device_id, metric_1, metric_2, metric_3, metric_4, metric_5, local_time, server_time)
+	VALUES (?id, ?device_id, ?metric_1, ?metric_2, ?metric_3, ?metric_4, ?metric_5, ?local_time, ?server_time)
+	`, &in.Id, &in.Deviceid, &in.Metric[0], &in.Metric[1], &in.Metric[2], &in.Metric[3], &in.Metric[4], &in.LocalTime, &in.ServerTime)
+	if err != nil {
+		//panic(err)
+	}
+
+}
+
+
 
 func getLastID(TableName string)  {
 
@@ -85,10 +98,11 @@ func getLastID(TableName string)  {
 func main() {
 
 	for {
-		getAllDevices()
+		go getAllDevices()
 		go createMetrics(<-Dev)
+		time.Sleep(time.Second*1)
+
 	}
 
-
-
 }
+
