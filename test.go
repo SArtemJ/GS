@@ -24,7 +24,7 @@ type Metric struct {
 
 var DB *pg.DB
 var Dev = make(chan Device)
-
+var LastIDm int
 
 func init() {
 
@@ -59,8 +59,10 @@ func getAllDevices() {
 
 func createMetrics(in Device) {
 
+
 	var newM Metric
-	newM.Id = getLastID("device_metrics")
+	getLastID("device_metrics")
+	newM.Id = LastIDm
 	for i:=0; i<len(newM.Metric); i++ {
 		newM.Metric[i] = rand.Intn(100)
 	}
@@ -68,17 +70,16 @@ func createMetrics(in Device) {
 	newM.LocalTime = time.Now()
 	newM.ServerTime = time.Now()
 	fmt.Println(newM)
-	time.Sleep(time.Second*5)
 }
 
-func getLastID(TableName string) int {
-	var lastID int
-	_, err := DB.QueryOne(pg.Scan(&lastID), "SELECT count(ID) + 1 from ?", TableName)
+func getLastID(TableName string)  {
+
+	_, err := DB.QueryOne(pg.Scan(&LastIDm), "SELECT count(ID) from ?", TableName)
 	if err != nil {
 		//panic(err)
 	}
 
-	return lastID
+	LastIDm++
 }
 
 func main() {
@@ -86,7 +87,6 @@ func main() {
 	for {
 		getAllDevices()
 		go createMetrics(<-Dev)
-		time.Sleep(time.Second*1)
 	}
 
 
